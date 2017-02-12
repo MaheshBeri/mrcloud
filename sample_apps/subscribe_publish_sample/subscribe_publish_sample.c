@@ -42,16 +42,19 @@
 #include "aws_iot_config.h"
 
 int32_t threshold_temperature = 30;
+int32_t temperature = 0;
+int32_t old_temperature = 0;
 int MQTTcallbackHandler(MQTTCallbackParams params) {
 
-	INFO("Subscribe callback");
+	/*INFO("Subscribe callback");
 	INFO("%.*s\t%.*s",
 			(int)params.TopicNameLen, params.pTopicName,
-			(int)params.MessageParams.PayloadLen, (char*)params.MessageParams.pPayload);
+			(int)params.MessageParams.PayloadLen, (char*)params.MessageParams.pPayload);*/
 	
 //int * temp=(int*)params.MessageParams.pPayload;
 threshold_temperature=atoi((char*)params.MessageParams.pPayload);	
-	INFO("threshold %d",threshold_temperature );
+	INFO("Setting new threshold temperature as  %d",threshold_temperature );
+	INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
 	return 0;
 }
 
@@ -133,8 +136,7 @@ void parseInputArgsForConnectParams(int argc, char** argv) {
 int main(int argc, char** argv) {
 	IoT_Error_t rc = NONE_ERROR;
 	int32_t i = 0;
-	int32_t temperature = 0;
-	int32_t old_temperature = 0;
+	int32_t flagSlack = 0;
 	bool infinitePublishFlag = true;
 
 printf( "Raspberry Pi wiringPi DHT11 Temperature test program\n" );
@@ -222,7 +224,7 @@ printf( "Raspberry Pi wiringPi DHT11 Temperature test program\n" );
 	if (publishCount != 0) {
 		infinitePublishFlag = false;
 	}
-
+	initmotor();
 	while ((NETWORK_ATTEMPTING_RECONNECT == rc || RECONNECT_SUCCESSFUL == rc || NONE_ERROR == rc)
 			&& (publishCount > 0 || infinitePublishFlag)) {
 
@@ -245,13 +247,23 @@ temperature=read_dht11_dat();
 		i++;
 		Msg.PayloadLen = strlen(cPayload) + 1;
 		Params.MessageParams = Msg;
-		INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
+		if(temperature!=old_temperature)
+			INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
 		if(temperature>threshold_temperature){
 			blink(1);
+			startmotor(1);
 			rc = aws_iot_mqtt_publish(&Params);
 			if (publishCount > 0) {
 				publishCount--;
 			}
+			if(flagSlack==0){
+				publish_to_slack(temperature);
+				flagSlack=1;
+			}
+		}else{
+			flagSlack=0;
+			blink(0);
+			startmotor(0);
 		}
 	}
 
