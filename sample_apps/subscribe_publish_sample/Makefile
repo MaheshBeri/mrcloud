@@ -43,7 +43,7 @@ MQTT_SRC_FILES += $(MQTT_C_DIR)/MQTTClient.c
 TLS_LIB_DIR = /usr/lib/
 TLS_INCLUDE_DIR = -I /usr/include/openssl
 EXTERNAL_LIBS += -L$(TLS_LIB_DIR)
-LD_FLAG := -ldl -lssl -lcrypto -lwiringPi -lwiringPiDev -lcurl
+LD_FLAG := -ldl -lssl -lcrypto -lwiringPi -lwiringPiDev -lcurl -lm 
 LD_FLAG += -Wl,-rpath,$(TLS_LIB_DIR)
 
 #Aggregate all include and src directories
@@ -58,6 +58,7 @@ SRC_FILES += $(IOT_SRC_FILES)
 SRC_FILES += tempreader.c
 SRC_FILES += blink.c
 SRC_FILES += motor.c
+SRC_FILES += cJSON.c
 SRC_FILES += slack_publish.c
 
 # Logging level control

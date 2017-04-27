@@ -40,21 +40,36 @@
 #include "aws_iot_version.h"
 #include "aws_iot_mqtt_interface.h"
 #include "aws_iot_config.h"
+#include "cJSON.h"
 
-int32_t threshold_temperature = 30;
+int32_t threshold_temperature = 35;
+int32_t new_threshold_temperature = 0;
 int32_t temperature = 0;
 int32_t old_temperature = 0;
 int MQTTcallbackHandler(MQTTCallbackParams params) {
 
-	/*INFO("Subscribe callback");
-	INFO("%.*s\t%.*s",
+	INFO("Subscribe callback");
+	/*INFO("%.*s\t%.*s",
 			(int)params.TopicNameLen, params.pTopicName,
 			(int)params.MessageParams.PayloadLen, (char*)params.MessageParams.pPayload);*/
-	
-//int * temp=(int*)params.MessageParams.pPayload;
-threshold_temperature=atoi((char*)params.MessageParams.pPayload);	
+	threshold_temperature=atoi((char*)params.MessageParams.pPayload);	
 	INFO("Setting new threshold temperature as  %d",threshold_temperature );
 	INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
+
+	
+/*	cJSON * root = cJSON_Parse((char*)params.MessageParams.pPayload);
+	cJSON *state_item = cJSON_GetObjectItem(root, "state");	
+	cJSON *desired_item = cJSON_GetObjectItem(state_item, "desired");
+	if(cJSON_IsNull(desired_item)) {
+		INFO("Processing new threshold  %s",desired_item);		
+		cJSON *temp_item = cJSON_GetObjectItem(desired_item, "temp");
+		new_threshold_temperature=atoi(temp_item->valuestring);	
+		if(new_threshold_temperature!=threshold_temperature){
+			INFO("Setting new threshold temperature as  %d",threshold_temperature );
+			INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
+			threshold_temperature=new_threshold_temperature;
+		}
+	}*/
 	return 0;
 }
 
@@ -152,6 +167,7 @@ printf( "Raspberry Pi wiringPi DHT11 Temperature test program\n" );
 	char cafileName[] = AWS_IOT_ROOT_CA_FILENAME;
 	char clientCRTName[] = AWS_IOT_CERTIFICATE_FILENAME;
 	char clientKeyName[] = AWS_IOT_PRIVATE_KEY_FILENAME;
+	char alertFlag[]="true";
 
 	parseInputArgsForConnectParams(argc, argv);
 
@@ -202,6 +218,7 @@ printf( "Raspberry Pi wiringPi DHT11 Temperature test program\n" );
 	MQTTSubscribeParams subParams = MQTTSubscribeParamsDefault;
 	subParams.mHandler = MQTTcallbackHandler;
 	subParams.pTopic = "sdkTest/config";
+	//subParams.pTopic = "$aws/things/HydraulicPump/shadow/update/accepted";
 	subParams.qos = QOS_0;
 
 	if (NONE_ERROR == rc) {
@@ -215,16 +232,18 @@ printf( "Raspberry Pi wiringPi DHT11 Temperature test program\n" );
 	MQTTMessageParams Msg = MQTTMessageParamsDefault;
 	Msg.qos = QOS_0;
 	char cPayload[100];
-	sprintf(cPayload, "%s : %d ", "hello from SDK", i);
+
 	Msg.pPayload = (void *) cPayload;
 
 	MQTTPublishParams Params = MQTTPublishParamsDefault;
-	Params.pTopic = "sdkTest/alert";
+	//Params.pTopic = "sdkTest/alert";
+        Params.pTopic = "$aws/things/HydraulicPump/shadow/update";
 
 	if (publishCount != 0) {
 		infinitePublishFlag = false;
 	}
 	initmotor();
+	INFO("-->starting");
 	while ((NETWORK_ATTEMPTING_RECONNECT == rc || RECONNECT_SUCCESSFUL == rc || NONE_ERROR == rc)
 			&& (publishCount > 0 || infinitePublishFlag)) {
 
@@ -239,36 +258,52 @@ printf( "Raspberry Pi wiringPi DHT11 Temperature test program\n" );
 		//INFO("-->sleep");
 		//sleep(1);
 		delay(100);
-		old_temperature=temperature;
-temperature=read_dht11_dat();
+		
+		temperature=read_dht11_dat();
 		if(temperature==0)
 			temperature=old_temperature;
-		sprintf(cPayload, "%s : %d ", "Device KJT7659 , Temperature Alert ", temperature);
-		i++;
-		Msg.PayloadLen = strlen(cPayload) + 1;
-		Params.MessageParams = Msg;
-		if(temperature!=old_temperature)
-			INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
+
 		if(temperature>threshold_temperature){
 			blink(1);
 			startmotor(1);
-			rc = aws_iot_mqtt_publish(&Params);
-			if (publishCount > 0) {
-				publishCount--;
-			}
-			if(flagSlack==0){
-				publish_to_slack(temperature);
-				flagSlack=1;
-			}
+			strcpy(alertFlag, "true");
+
 		}else{
-			flagSlack=0;
 			blink(0);
 			startmotor(0);
+			strcpy(alertFlag, "false");
+
 		}
+		//sprintf(cPayload, "%s : %d ", "Device KJT7659 , Temperature Alert ", temperature);
+		sprintf(cPayload,"{\"state\":{\"reported\":{\"temp\":\"%d\",\"pressure\":\"2\",\"oil_temp\":\"%d\",\"alert\":\"%s\"}}}",threshold_temperature,temperature,alertFlag);
+		i++;
+		Msg.PayloadLen = strlen(cPayload) + 1;
+		Params.MessageParams = Msg;
+
+		if(temperature!=old_temperature ){
+			INFO("temperature... %d  threshold %d",temperature,threshold_temperature);
+
+			if(temperature>threshold_temperature || old_temperature==0){
+				INFO("-->Publishing ");
+				rc = aws_iot_mqtt_publish(&Params);
+				if (publishCount > 0) {
+					publishCount--;
+				}
+                        }
+		}
+			//if(flagSlack==0){
+				//publish_to_slack(temperature);
+				//flagSlack=1;
+			//}
+		//}else{
+		//	flagSlack=0;
+		//}
+		old_temperature=temperature;
 	}
 
 	if (NONE_ERROR != rc) {
 		ERROR("An error occurred in the loop.\n");
+		ERROR("Error code %d.\n",rc);
 	} else {
 		INFO("Publish done\n");
 	}

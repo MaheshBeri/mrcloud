@@ -30,10 +30,10 @@
 #define AWS_IOT_MY_THING_NAME 		   "HydraulicPump" ///< Thing Name of the Shadow this device is associated with
 //#define AWS_IOT_MY_THING_NAME 		   "SmartFlow0001" ///< Thing Name of the Shadow this device is associated with
 #define AWS_IOT_ROOT_CA_FILENAME       "VeriSign-Class 3-Public-Primary-Certification-Authority-G5.pem" ///< Root CA file name
-#define AWS_IOT_CERTIFICATE_FILENAME   "30e9added7-certificate.pem.crt" ///< device signed certificate file name
-//#define AWS_IOT_CERTIFICATE_FILENAME   "0e9de65db5-certificate.pem.crt" ///< device signed certificate file name
-#define AWS_IOT_PRIVATE_KEY_FILENAME   "30e9added7-private.pem" ///< Device private key filename
-//#define AWS_IOT_PRIVATE_KEY_FILENAME   "0e9de65db5-private.pem" ///< Device private key filename
+//#define AWS_IOT_CERTIFICATE_FILENAME   "30e9added7-certificate.pem.crt" ///< device signed certificate file name
+#define AWS_IOT_CERTIFICATE_FILENAME   "4ce554ad7b-certificate.pem.crt" ///< device signed certificate file name
+//#define AWS_IOT_PRIVATE_KEY_FILENAME   "30e9added7-private.pem" ///< Device private key filename
+#define AWS_IOT_PRIVATE_KEY_FILENAME   "4ce554ad7b-private.pem.key" ///< Device private key filename
 // =================================================
 
 // MQTT PubSub
